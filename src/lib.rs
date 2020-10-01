@@ -1136,7 +1136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_icorrect_length() {
+    fn test_incorrect_length() {
         let test_set1 = &[
             0, 0, 1, 0, 1, 0, 1, 0, 0, 0,
             1, 0, 0, 0, 0, 0, 0, 0
