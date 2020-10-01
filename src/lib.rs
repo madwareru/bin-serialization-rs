@@ -96,16 +96,30 @@ struct BinaryWriterLittleEndian<'a, TStream: Write> {
 
 impl<'a, TStream: Write> SerializationProcessor for BinaryWriterBigEndian<'a, TStream> {
     fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        self.stream.write(&[*data])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[*data])?;
+        if bytes_written == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write one byte"
+            ))
+        }
     }
 
     fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
         let mut d = data.to_be();
         let b0 = (d & 0xFF) as u8; d /= 0x100;
         let b1 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1])?;
+        if bytes_written == 2 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write two bytes"
+            ))
+        }
     }
 
     fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
@@ -114,8 +128,15 @@ impl<'a, TStream: Write> SerializationProcessor for BinaryWriterBigEndian<'a, TS
         let b1 = (d & 0xFF) as u8; d /= 0x100;
         let b2 = (d & 0xFF) as u8; d /= 0x100;
         let b3 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1, b2, b3])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1, b2, b3])?;
+        if bytes_written == 4 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write four bytes"
+            ))
+        }
     }
 
     fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
@@ -128,8 +149,15 @@ impl<'a, TStream: Write> SerializationProcessor for BinaryWriterBigEndian<'a, TS
         let b5 = (d & 0xFF) as u8; d /= 0x100;
         let b6 = (d & 0xFF) as u8; d /= 0x100;
         let b7 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
+        if bytes_written == 8 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write eight bytes"
+            ))
+        }
     }
 
     fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
@@ -189,16 +217,30 @@ impl<'a, TStream: Write> SerializationProcessor for BinaryWriterBigEndian<'a, TS
 
 impl<'a, TStream: Write> SerializationProcessor for BinaryWriterLittleEndian<'a, TStream> {
     fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        self.stream.write(&[*data])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[*data])?;
+        if bytes_written == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write two bytes"
+            ))
+        }
     }
 
     fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
         let mut d = data.to_le();
         let b0 = (d & 0xFF) as u8; d /= 0x100;
         let b1 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1])?;
+        if bytes_written == 2 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write two bytes"
+            ))
+        }
     }
 
     fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
@@ -207,8 +249,15 @@ impl<'a, TStream: Write> SerializationProcessor for BinaryWriterLittleEndian<'a,
         let b1 = (d & 0xFF) as u8; d /= 0x100;
         let b2 = (d & 0xFF) as u8; d /= 0x100;
         let b3 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1, b2, b3])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1, b2, b3])?;
+        if bytes_written == 4 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write four bytes"
+            ))
+        }
     }
 
     fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
@@ -221,8 +270,15 @@ impl<'a, TStream: Write> SerializationProcessor for BinaryWriterLittleEndian<'a,
         let b5 = (d & 0xFF) as u8; d /= 0x100;
         let b6 = (d & 0xFF) as u8; d /= 0x100;
         let b7 = (d & 0xFF) as u8;
-        self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
-        Ok(())
+        let bytes_written = self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
+        if bytes_written == 8 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to write eight bytes"
+            ))
+        }
     }
 
     fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
