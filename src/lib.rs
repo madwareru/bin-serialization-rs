@@ -869,4 +869,41 @@ mod tests {
         deserializer.reflect_string(&mut s2).unwrap();
         assert_eq!(s, s2);
     }
+
+    #[test]
+    fn test_integers_and_floats_serialization() {
+        let mut a = 13;
+        let mut b = 3123;
+        let mut c = -23123131;
+        let mut d = 10.43345;
+        let mut e = 17.1231231;
+
+        let mut a1 = 0;
+        let mut b1 = 0;
+        let mut c1 = 0;
+        let mut d1 = 0.0;
+        let mut e1 = 0.0;
+
+        let mut stream_vec = Vec::new();
+
+        let mut serializer = BinaryWriterLittleEndian{ stream: &mut stream_vec };
+        serializer.reflect_i8(&mut a).unwrap();
+        serializer.reflect_i16(&mut b).unwrap();
+        serializer.reflect_i32(&mut c).unwrap();
+        serializer.reflect_f32(&mut d).unwrap();
+        serializer.reflect_f64(&mut e).unwrap();
+
+        let mut deserializer = BinaryReaderLittleEndian{ stream: &mut &stream_vec[..] };
+        deserializer.reflect_i8(&mut a1).unwrap();
+        deserializer.reflect_i16(&mut b1).unwrap();
+        deserializer.reflect_i32(&mut c1).unwrap();
+        deserializer.reflect_f32(&mut d1).unwrap();
+        deserializer.reflect_f64(&mut e1).unwrap();
+
+        assert_eq!(a, a1);
+        assert_eq!(b, b1);
+        assert_eq!(c, c1);
+        assert_eq!(d, d1);
+        assert_eq!(e, e1);
+    }
 }
