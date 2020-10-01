@@ -93,6 +93,9 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_composite<R: Reflectable>(&mut self, composite: &mut R) -> std::io::Result<()> {
+        composite.reflect(self)
+    }
 }
 
 fn reflect_size<R: SerializationReflector>(r: &mut R, s: &mut usize) -> std::io::Result<()> {
