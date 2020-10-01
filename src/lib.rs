@@ -5,7 +5,7 @@ pub enum Endianness {
     LittleEndian
 }
 
-pub trait SerializationReflector {
+pub trait SerializationReflector: Sized {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()>;
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()>;
     fn reflect_u32(&mut self, data: &mut u32) -> std::io::Result<()>;
@@ -16,6 +16,135 @@ pub trait SerializationReflector {
     fn reflect_i64(&mut self, data: &mut i64) -> std::io::Result<()>;
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()>;
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()>;
+    fn reflect_u8_array(&mut self, data: &mut Vec<u8>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_u8(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_u16_array(&mut self, data: &mut Vec<u16>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_u16(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_u32_array(&mut self, data: &mut Vec<u32>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_u32(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_u64_array(&mut self, data: &mut Vec<u64>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_u64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i8_array(&mut self, data: &mut Vec<i8>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_i8(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i16_array(&mut self, data: &mut Vec<i16>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_i16(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i32_array(&mut self, data: &mut Vec<i32>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_i32(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i64_array(&mut self, data: &mut Vec<i64>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_i64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_f32_array(&mut self, data: &mut Vec<f32>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_f32(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_f64_array(&mut self, data: &mut Vec<f64>) -> std::io::Result<()> {
+        let mut size = data.len();
+        reflect_size(self, &mut size)?;
+        data.resize(size, Default::default());
+        for i in 0..size{
+            self.reflect_f64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+}
+
+fn reflect_size<R: SerializationReflector>(r: &mut R, s: &mut usize) -> std::io::Result<()> {
+    let mut size = *s;
+    let mut tag = if size <= 0xFF {
+        1
+    } else if size <= 0xFFFF {
+        2
+    } else if size <= 0xFFFFFFFF {
+        4
+    } else {
+        8
+    };
+    r.reflect_u8(&mut tag)?;
+    size = match tag {
+        1 => {
+            let mut size_u8 = size as u8;
+            r.reflect_u8(&mut size_u8)?;
+            size_u8 as usize
+        },
+        2 => {
+            let mut size_u16 = size as u16;
+            r.reflect_u16(&mut size_u16)?;
+            size_u16 as usize
+        },
+        4 => {
+            let mut size_u32 = size as u32;
+            r.reflect_u32(&mut size_u32)?;
+            size_u32 as usize
+        },
+        8 => {
+            let mut size_u64 = size as u64;
+            r.reflect_u64(&mut size_u64)?;
+            size_u64 as usize
+        },
+        _ => unreachable!()
+    };
+    *s = size;
+    Ok(())
 }
 
 pub trait SerializationScheme: Sized+Default {
@@ -619,7 +748,7 @@ impl<'a, TStream: Read> SerializationReflector for BinaryReaderLittleEndian<'a, 
 #[cfg(test)]
 mod tests {
     use std::io::{Cursor, Seek, SeekFrom};
-    use crate::{SerializationScheme, SerializationReflector, Endianness};
+    use crate::{SerializationScheme, SerializationReflector, Endianness, BinaryReaderLittleEndian, BinaryReaderBigEndian};
 
     #[derive(Default, Debug, Copy, Clone)]
     struct TestStruct {
@@ -675,6 +804,38 @@ mod tests {
         assert_eq!(be.d, 0x0100000000000000);
         assert_eq!(be.e, 1);
         assert_eq!(be.f, 1);
+    }
+
+    #[test]
+    fn test_array_read() {
+        let test_set = &[
+             1, 20,
+             1,  2,  3,  4,  5,  6,  7,  8,
+             9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20
+        ];
+        let mut deserializer = BinaryReaderLittleEndian{stream: &mut &test_set[..]};
+        let mut vec = vec![0u8; 20];
+        deserializer.reflect_u8_array(&mut vec).unwrap();
+        assert_eq!(vec, vec![
+            1,  2,  3,  4,  5,  6,  7,  8,
+            9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20
+        ]);
+        let test_set = &[
+            1, 20,
+            1,  2,  3,  4,  5,  6,  7,  8,
+            9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20
+        ];
+        let mut deserializer = BinaryReaderBigEndian{stream: &mut &test_set[..]};
+        let mut vec = vec![0u8; 20];
+        deserializer.reflect_u8_array(&mut vec).unwrap();
+        assert_eq!(vec, vec![
+            1,  2,  3,  4,  5,  6,  7,  8,
+            9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20
+        ]);
     }
 
     #[test]
