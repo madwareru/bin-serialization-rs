@@ -350,18 +350,39 @@ fn reflect_vec_size_ext<R: SerializationReflector, T: Default+Clone>(
 }
 
 pub trait TaggedReflectable: Default+Clone {
-    fn get_tag(&self) -> u16;
+    fn get_size_policy() -> SizePolicy;
+    fn get_tag(&self) -> u64;
     fn reflect_tagged<TSerializationReflector: SerializationReflector>(
         &mut self,
-        tag: u16,
+        tag: u64,
         reflector: &mut TSerializationReflector
     ) -> std::io::Result<()>;
     fn reflect<TSerializationReflector: SerializationReflector>(
         &mut self,
         reflector: &mut TSerializationReflector
     ) -> std::io::Result<()> {
-        let mut tag = self.get_tag();
-        reflector.reflect_u16(&mut tag)?;
+        let tag = match Self::get_size_policy() {
+            SizePolicy::U8 => {
+                let mut tag = self.get_tag() as u8;
+                reflector.reflect_u8(&mut tag)?;
+                tag as u64
+            }
+            SizePolicy::U16 => {
+                let mut tag = self.get_tag() as u16;
+                reflector.reflect_u16(&mut tag)?;
+                tag as u64
+            }
+            SizePolicy::U32 => {
+                let mut tag = self.get_tag() as u32;
+                reflector.reflect_u32(&mut tag)?;
+                tag as u64
+            }
+            SizePolicy::U64 => {
+                let mut tag = self.get_tag();
+                reflector.reflect_u64(&mut tag)?;
+                tag as u64
+            }
+        };
         self.reflect_tagged(tag, reflector)
     }
     fn serialize<TStream: Write>(
