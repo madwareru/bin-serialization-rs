@@ -1,0 +1,647 @@
+use std::io::{Write, Read};
+
+pub enum Endianness {
+    BigEndian,
+    LittleEndian
+}
+
+pub trait SerializationProcessor {
+    fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()>;
+    fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()>;
+    fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()>;
+    fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()>;
+    fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()>;
+    fn process_i16(&mut self, data: &mut i16) -> std::io::Result<()>;
+    fn process_i32(&mut self, data: &mut i32) -> std::io::Result<()>;
+    fn process_i64(&mut self, data: &mut i64) -> std::io::Result<()>;
+    fn process_f32(&mut self, data: &mut f32) -> std::io::Result<()>;
+    fn process_f64(&mut self, data: &mut f64) -> std::io::Result<()>;
+}
+
+pub trait SerializationScheme: Sized+Default {
+    fn process<TSerializationProcessor: SerializationProcessor>(
+        &mut self,
+        processor: &mut TSerializationProcessor
+    ) -> std::io::Result<()>;
+    fn serialize<TStream: Write>(
+        &mut self,
+        stream: &mut TStream,
+        endianness: Endianness
+    ) -> std::io::Result<()> {
+        match endianness {
+            Endianness::BigEndian => serialize_to_stream_be(self, stream),
+            Endianness::LittleEndian => serialize_to_stream_le(self, stream)
+        }
+    }
+    fn deserialize<TStream: Read>(
+        stream: &mut TStream,
+        endianness: Endianness
+    ) -> std::io::Result<Self> {
+        let mut data = Default::default();
+        match endianness {
+            Endianness::BigEndian => deserialize_from_stream_be(&mut data, stream),
+            Endianness::LittleEndian => deserialize_from_stream_le(&mut data, stream)
+        }?;
+        Ok(data)
+    }
+}
+
+fn serialize_to_stream_be<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: SerializationScheme, TStream: Write
+{
+    let mut serializer = BinaryWriterBigEndian { stream };
+    data.process(&mut serializer)
+}
+
+fn serialize_to_stream_le<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: SerializationScheme, TStream: Write
+{
+    let mut serializer = BinaryWriterLittleEndian { stream };
+    data.process(&mut serializer)
+}
+
+fn deserialize_from_stream_be<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: SerializationScheme, TStream: Read
+{
+    let mut serializer = BinaryReaderBigEndian { stream };
+    data.process(&mut serializer)
+}
+
+fn deserialize_from_stream_le<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: SerializationScheme, TStream: Read
+{
+    let mut serializer = BinaryReaderLittleEndian { stream };
+    data.process(&mut serializer)
+}
+
+struct BinaryWriterBigEndian<'a, TStream: Write> {
+    stream: &'a mut TStream
+}
+
+struct BinaryWriterLittleEndian<'a, TStream: Write> {
+    stream: &'a mut TStream
+}
+
+impl<'a, TStream: Write> SerializationProcessor for BinaryWriterBigEndian<'a, TStream> {
+    fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
+        self.stream.write(&[*data])?;
+        Ok(())
+    }
+
+    fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
+        let mut d = data.to_be();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1])?;
+        Ok(())
+    }
+
+    fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
+        let mut d = data.to_be();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8; d /= 0x100;
+        let b2 = (d & 0xFF) as u8; d /= 0x100;
+        let b3 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1, b2, b3])?;
+        Ok(())
+    }
+
+    fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
+        let mut d = data.to_be();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8; d /= 0x100;
+        let b2 = (d & 0xFF) as u8; d /= 0x100;
+        let b3 = (d & 0xFF) as u8; d /= 0x100;
+        let b4 = (d & 0xFF) as u8; d /= 0x100;
+        let b5 = (d & 0xFF) as u8; d /= 0x100;
+        let b6 = (d & 0xFF) as u8; d /= 0x100;
+        let b7 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
+        Ok(())
+    }
+
+    fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i8;
+            let x = x as *const u8;
+            *x
+        };
+        self.process_u8(&mut data)
+    }
+
+    fn process_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i16;
+            let x = x as *const u16;
+            *x
+        };
+        self.process_u16(&mut data)
+    }
+
+    fn process_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i32;
+            let x = x as *const u32;
+            *x
+        };
+        self.process_u32(&mut data)
+    }
+
+    fn process_i64(&mut self, data: &mut i64) -> std::io::Result<()>{
+        let mut data = unsafe {
+            let x  = &[*data] as *const i64;
+            let x = x as *const u64;
+            *x
+        };
+        self.process_u64(&mut data)
+    }
+
+    fn process_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const f32;
+            let x = x as *const u32;
+            *x
+        };
+        self.process_u32(&mut data)
+    }
+
+    fn process_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const f64;
+            let x = x as *const u64;
+            *x
+        };
+        self.process_u64(&mut data)
+    }
+}
+
+impl<'a, TStream: Write> SerializationProcessor for BinaryWriterLittleEndian<'a, TStream> {
+    fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
+        self.stream.write(&[*data])?;
+        Ok(())
+    }
+
+    fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
+        let mut d = data.to_le();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1])?;
+        Ok(())
+    }
+
+    fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
+        let mut d = data.to_le();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8; d /= 0x100;
+        let b2 = (d & 0xFF) as u8; d /= 0x100;
+        let b3 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1, b2, b3])?;
+        Ok(())
+    }
+
+    fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
+        let mut d = data.to_le();
+        let b0 = (d & 0xFF) as u8; d /= 0x100;
+        let b1 = (d & 0xFF) as u8; d /= 0x100;
+        let b2 = (d & 0xFF) as u8; d /= 0x100;
+        let b3 = (d & 0xFF) as u8; d /= 0x100;
+        let b4 = (d & 0xFF) as u8; d /= 0x100;
+        let b5 = (d & 0xFF) as u8; d /= 0x100;
+        let b6 = (d & 0xFF) as u8; d /= 0x100;
+        let b7 = (d & 0xFF) as u8;
+        self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
+        Ok(())
+    }
+
+    fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i8;
+            let x = x as *const u8;
+            *x
+        };
+        self.process_u8(&mut data)
+    }
+
+    fn process_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i16;
+            let x = x as *const u16;
+            *x
+        };
+        self.process_u16(&mut data)
+    }
+
+    fn process_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const i32;
+            let x = x as *const u32;
+            *x
+        };
+        self.process_u32(&mut data)
+    }
+
+    fn process_i64(&mut self, data: &mut i64) -> std::io::Result<()>{
+        let mut data = unsafe {
+            let x  = &[*data] as *const i64;
+            let x = x as *const u64;
+            *x
+        };
+        self.process_u64(&mut data)
+    }
+
+    fn process_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const f32;
+            let x = x as *const u32;
+            *x
+        };
+        self.process_u32(&mut data)
+    }
+
+    fn process_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
+        let mut data = unsafe {
+            let x  = &[*data] as *const f64;
+            let x = x as *const u64;
+            *x
+        };
+        self.process_u64(&mut data)
+    }
+}
+
+struct BinaryReaderBigEndian<'a, TStream: Read> {
+    stream: &'a mut TStream
+}
+
+struct BinaryReaderLittleEndian<'a, TStream: Read> {
+    stream: &'a mut TStream
+}
+
+impl<'a, TStream: Read> SerializationProcessor for BinaryReaderBigEndian<'a, TStream> {
+    fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
+        let d = &mut [0];
+        let size_read = self.stream.read(d)?;
+        *data = d[0];
+        if size_read == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read one byte"
+            ))
+        }
+    }
+
+    fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
+        let d = &mut [0; 2];
+        let size_read = self.stream.read(d)?;
+        *data = u16::from_be(d[0] as u16 + d[1] as u16 * 0x100);
+        if size_read == 2 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read two bytes"
+            ))
+        }
+    }
+
+    fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = u32::from_be(d[0] as u32 +
+            d[1] as u32 * 0x100 +
+            d[2] as u32 * 0x10000 +
+            d[3] as u32 * 0x1000000
+        );
+        if size_read == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read four bytes"
+            ))
+        }
+    }
+
+    fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = u64::from_be(d[0] as u64 +
+            d[1] as u64 * 0x100 +
+            d[2] as u64 * 0x10000 +
+            d[3] as u64 * 0x1000000 +
+            d[4] as u64 * 0x100000000 +
+            d[5] as u64 * 0x10000000000 +
+            d[6] as u64 * 0x1000000000000 +
+            d[7] as u64 * 0x100000000000000
+        );
+        if size_read == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read eight bytes"
+            ))
+        }
+    }
+
+    fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
+        let mut d = 0u8;
+        self.process_u8(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u8;
+            let x = x as *const i8;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
+        let mut d = 0u16;
+        self.process_u16(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u16;
+            let x = x as *const i16;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
+        let mut d = 0u32;
+        self.process_u32(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u32;
+            let x = x as *const i32;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i64(&mut self, data: &mut i64) -> std::io::Result<()> {
+        let mut d = 0u64;
+        self.process_u64(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u64;
+            let x = x as *const i64;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
+        let mut d = 0u32;
+        self.process_u32(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u32;
+            let x = x as *const f32;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
+        let mut d = 0u64;
+        self.process_u64(&mut d)?;
+        *data = unsafe {
+            let x  = &[d] as *const u64;
+            let x = x as *const f64;
+            *x
+        };
+        Ok(())
+    }
+}
+
+impl<'a, TStream: Read> SerializationProcessor for BinaryReaderLittleEndian<'a, TStream> {
+    fn process_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
+        let d = &mut [0];
+        let size_read = self.stream.read(d)?;
+        *data = d[0];
+        if size_read == 1 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read one byte"
+            ))
+        }
+    }
+
+    fn process_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
+        let d = &mut [0; 2];
+        let size_read = self.stream.read(d)?;
+        *data = u16::from_le(d[0] as u16 + d[1] as u16 * 0x100);
+        if size_read == 2 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read two bytes"
+            ))
+        }
+    }
+
+    fn process_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = u32::from_le(d[0] as u32 +
+            d[1] as u32 * 0x100 +
+            d[2] as u32 * 0x10000 +
+            d[3] as u32 * 0x1000000
+        );
+        if size_read == 4 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read four bytes"
+            ))
+        }
+    }
+
+    fn process_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = u64::from_le(d[0] as u64 +
+            d[1] as u64 * 0x100 +
+            d[2] as u64 * 0x10000 +
+            d[3] as u64 * 0x1000000 +
+            d[4] as u64 * 0x100000000 +
+            d[5] as u64 * 0x10000000000 +
+            d[6] as u64 * 0x1000000000000 +
+            d[7] as u64 * 0x100000000000000
+        );
+        if size_read == 8 {
+            Ok(())
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "failed to read eight bytes"
+            ))
+        }
+    }
+
+    fn process_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
+        let mut d = 0u8;
+        self.process_u8(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u8;
+            let x = x as *const i8;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
+        let mut d = 0u16;
+        self.process_u16(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u16;
+            let x = x as *const i16;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
+        let mut d = 0u32;
+        self.process_u32(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u32;
+            let x = x as *const i32;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_i64(&mut self, data: &mut i64) -> std::io::Result<()> {
+        let mut d = 0u64;
+        self.process_u64(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u64;
+            let x = x as *const i64;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
+        let mut d = 0u32;
+        self.process_u32(&mut d)?;
+        *data = unsafe {
+            let x = &[d] as *const u32;
+            let x = x as *const f32;
+            *x
+        };
+        Ok(())
+    }
+
+    fn process_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
+        let mut d = 0u64;
+        self.process_u64(&mut d)?;
+        *data = unsafe {
+            let x  = &[d] as *const u64;
+            let x = x as *const f64;
+            *x
+        };
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Cursor, Seek, SeekFrom};
+    use crate::{SerializationScheme, SerializationProcessor, Endianness};
+
+    #[derive(Default, Debug, Copy, Clone)]
+    struct TestStruct {
+        a: u32,
+        b: u16,
+        c: u32,
+        d: u64,
+        e: u8,
+        f: u8
+    }
+
+    impl SerializationScheme for TestStruct {
+        fn process<TSerializationProcessor: SerializationProcessor>(
+            &mut self, processor:
+            &mut TSerializationProcessor
+        ) -> std::io::Result<()> {
+            processor.process_u32(&mut self.a)?;
+            processor.process_u16(&mut self.b)?;
+            processor.process_u32(&mut self.c)?;
+            processor.process_u64(&mut self.d)?;
+            processor.process_u8(&mut self.e)?;
+            processor.process_u8(&mut self.f)
+        }
+    }
+
+    #[test]
+    fn test_trivial_reads() {
+        let test_set = &[
+            0, 0, 1, 0, 1, 0, 1, 0, 0, 0,
+            1, 0, 0, 0, 0, 0, 0, 0, 1, 1
+        ];
+        let mut cursor = Cursor::new(test_set);
+        let le = TestStruct::deserialize(
+            &mut cursor,
+            Endianness::LittleEndian
+        ).unwrap();
+        cursor.seek(SeekFrom::Start(0)).unwrap();
+        let be = TestStruct::deserialize(
+            &mut cursor,
+            Endianness::BigEndian
+        ).unwrap();
+
+        assert_eq!(le.a, 0x00010000);
+        assert_eq!(le.b, 1);
+        assert_eq!(le.c, 1);
+        assert_eq!(le.d, 1);
+        assert_eq!(le.e, 1);
+        assert_eq!(le.f, 1);
+
+        assert_eq!(be.a, 0x00000100);
+        assert_eq!(be.b, 0x0100);
+        assert_eq!(be.c, 0x01000000);
+        assert_eq!(be.d, 0x0100000000000000);
+        assert_eq!(be.e, 1);
+        assert_eq!(be.f, 1);
+    }
+
+    #[test]
+    fn test_icorrect_length() {
+        let test_set1 = &[
+            0, 0, 1, 0, 1, 0, 1, 0, 0, 0,
+            1, 0, 0, 0, 0, 0, 0, 0
+        ];
+        let mut cursor1 = Cursor::new(test_set1);
+        let test_set2 = &[
+            0, 0, 1, 0, 1, 0, 1, 0, 0, 0,
+            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+        ];
+        let mut cursor2 = Cursor::new(test_set2);
+        let deserialize_trial = TestStruct::deserialize(
+            &mut cursor1,
+            Endianness::LittleEndian
+        );
+        assert!(deserialize_trial.is_err());
+        let deserialize_trial = TestStruct::deserialize(
+            &mut cursor2,
+            Endianness::LittleEndian
+        );
+        assert!(deserialize_trial.is_ok());
+    }
+}
