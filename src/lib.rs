@@ -5,6 +5,14 @@ pub enum Endianness {
     LittleEndian
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum SizePolicy {
+    U8,
+    U16,
+    U32,
+    U64
+}
+
 pub trait SerializationReflector: Sized {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()>;
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()>;
@@ -23,8 +31,22 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_u8_array_ext(&mut self, data: &mut Vec<u8>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_u8(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_u16_array(&mut self, data: &mut Vec<u16>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_u16(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_u16_array_ext(&mut self, data: &mut Vec<u16>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
         for i in 0..data.len(){
             self.reflect_u16(&mut data[i])?;
         }
@@ -37,10 +59,24 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_u32_array_ext(&mut self, data: &mut Vec<u32>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_u32(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_u64_array(&mut self, data: &mut Vec<u64>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
             self.reflect_u64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_u64_array_ext(&mut self, data: &mut Vec<u64>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_u64(&mut data[i])?;
         }
         Ok(())
     }
@@ -51,10 +87,24 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_i8_array_ext(&mut self, data: &mut Vec<i8>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_i8(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_i16_array(&mut self, data: &mut Vec<i16>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
             self.reflect_i16(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i16_array_ext(&mut self, data: &mut Vec<i16>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_i16(&mut data[i])?;
         }
         Ok(())
     }
@@ -65,10 +115,24 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_i32_array_ext(&mut self, data: &mut Vec<i32>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_i32(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_i64_array(&mut self, data: &mut Vec<i64>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
             self.reflect_i64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_i64_array_ext(&mut self, data: &mut Vec<i64>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_i64(&mut data[i])?;
         }
         Ok(())
     }
@@ -79,6 +143,13 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_f32_array_ext(&mut self, data: &mut Vec<f32>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_f32(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_f64_array(&mut self, data: &mut Vec<f64>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
@@ -86,10 +157,24 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_f64_array_ext(&mut self, data: &mut Vec<f64>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_f64(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_string(&mut self, string: &mut String) -> std::io::Result<()> {
         unsafe {
             let vec_repr = string.as_mut_vec();
             self.reflect_u8_array(vec_repr)?;
+        }
+        Ok(())
+    }
+    fn reflect_string_ext(&mut self, string: &mut String, size_policy: SizePolicy) -> std::io::Result<()> {
+        unsafe {
+            let vec_repr = string.as_mut_vec();
+            self.reflect_u8_array_ext(vec_repr, size_policy)?;
         }
         Ok(())
     }
@@ -106,11 +191,29 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_bool_array_ext(&mut self, data: &mut Vec<bool>, size_policy: SizePolicy) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
+        for i in 0..data.len(){
+            self.reflect_bool(&mut data[i])?;
+        }
+        Ok(())
+    }
     fn reflect_composite<R: Reflectable>(&mut self, composite: &mut R) -> std::io::Result<()> {
         composite.reflect(self)
     }
     fn reflect_array_of_composites<R: Reflectable>(&mut self, data: &mut Vec<R>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_composite(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_array_of_composites_ext<R: Reflectable>(
+        &mut self,
+        data: &mut Vec<R>,
+        size_policy: SizePolicy
+    ) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
         for i in 0..data.len(){
             self.reflect_composite(&mut data[i])?;
         }
@@ -127,6 +230,17 @@ pub trait SerializationReflector: Sized {
         data: &mut Vec<R>
     ) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_tagged_composite(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_array_of_tagged_composites_ext<R: TaggedReflectable>(
+        &mut self,
+        data: &mut Vec<R>,
+        size_policy: SizePolicy
+    ) -> std::io::Result<()> {
+        reflect_vec_size_ext(self, data, size_policy)?;
         for i in 0..data.len(){
             self.reflect_tagged_composite(&mut data[i])?;
         }
@@ -173,9 +287,62 @@ fn reflect_size<R: SerializationReflector>(r: &mut R, s: &mut usize) -> std::io:
     Ok(())
 }
 
+fn reflect_size_ext<R: SerializationReflector>(
+    r: &mut R, s:
+    &mut usize,
+    size_policy: SizePolicy
+) -> std::io::Result<()> {
+    let mut size = *s;
+    let mut tag = match size_policy {
+        SizePolicy::U8 => 1,
+        SizePolicy::U16 => 2,
+        SizePolicy::U32 => 4,
+        SizePolicy::U64 => 8
+    };
+    r.reflect_u8(&mut tag)?;
+    size = match tag {
+        1 => {
+            let mut size_u8 = size as u8;
+            r.reflect_u8(&mut size_u8)?;
+            size_u8 as usize
+        },
+        2 => {
+            let mut size_u16 = size as u16;
+            r.reflect_u16(&mut size_u16)?;
+            size_u16 as usize
+        },
+        4 => {
+            let mut size_u32 = size as u32;
+            r.reflect_u32(&mut size_u32)?;
+            size_u32 as usize
+        },
+        8 => {
+            let mut size_u64 = size as u64;
+            r.reflect_u64(&mut size_u64)?;
+            size_u64 as usize
+        },
+        _ => unreachable!()
+    };
+    *s = size;
+    Ok(())
+}
+
 fn reflect_vec_size<R: SerializationReflector, T: Default+Clone>(r: &mut R, v: &mut Vec<T>) -> std::io::Result<()> {
     let mut size = v.len();
     reflect_size(r, &mut size)?;
+    if v.len() != size {
+        v.resize(size, Default::default());
+    }
+    Ok(())
+}
+
+fn reflect_vec_size_ext<R: SerializationReflector, T: Default+Clone>(
+    r: &mut R,
+    v: &mut Vec<T>,
+    size_policy: SizePolicy
+) -> std::io::Result<()> {
+    let mut size = v.len();
+    reflect_size_ext(r, &mut size, size_policy)?;
     if v.len() != size {
         v.resize(size, Default::default());
     }
