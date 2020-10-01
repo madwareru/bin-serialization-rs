@@ -102,6 +102,20 @@ pub trait SerializationReflector: Sized {
         *data = casted != 0;
         Ok(())
     }
+    fn reflect_bool_array(&mut self, data: &mut Vec<bool>) -> std::io::Result<()> {
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_bool(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_array_of_composites<R: Reflectable>(&mut self, data: &mut Vec<R>) -> std::io::Result<()> {
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_composite(&mut data[i])?;
+        }
+        Ok(())
+    }
 }
 
 fn reflect_size<R: SerializationReflector>(r: &mut R, s: &mut usize) -> std::io::Result<()> {
@@ -152,7 +166,7 @@ fn reflect_vec_size<R: SerializationReflector, T: Default+Clone>(r: &mut R, v: &
     Ok(())
 }
 
-pub trait Reflectable: Sized+Default {
+pub trait Reflectable: Default+Clone {
     fn reflect<TSerializationReflector: SerializationReflector>(
         &mut self,
         reflector: &mut TSerializationReflector
