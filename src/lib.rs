@@ -17,92 +17,79 @@ pub trait SerializationReflector: Sized {
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()>;
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()>;
     fn reflect_u8_array(&mut self, data: &mut Vec<u8>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_u8(&mut data[i])?;
         }
         Ok(())
     }
     fn reflect_u16_array(&mut self, data: &mut Vec<u16>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_u16(&mut data[i])?;
         }
         Ok(())
     }
     fn reflect_u32_array(&mut self, data: &mut Vec<u32>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_u32(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_u64_array(&mut self, data: &mut Vec<u64>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_u64(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_i8_array(&mut self, data: &mut Vec<i8>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_i8(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_i16_array(&mut self, data: &mut Vec<i16>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_i16(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_i32_array(&mut self, data: &mut Vec<i32>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_i32(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_i64_array(&mut self, data: &mut Vec<i64>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_i64(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_f32_array(&mut self, data: &mut Vec<f32>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_f32(&mut data[i as usize])?;
         }
         Ok(())
     }
     fn reflect_f64_array(&mut self, data: &mut Vec<f64>) -> std::io::Result<()> {
-        let mut size = data.len();
-        reflect_size(self, &mut size)?;
-        data.resize(size, Default::default());
-        for i in 0..size{
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
             self.reflect_f64(&mut data[i as usize])?;
+        }
+        Ok(())
+    }
+    fn reflect_string(&mut self, string: &mut String) -> std::io::Result<()> {
+        unsafe {
+            let vec_repr = string.as_mut_vec();
+            self.reflect_u8_array(vec_repr)?;
         }
         Ok(())
     }
@@ -147,8 +134,17 @@ fn reflect_size<R: SerializationReflector>(r: &mut R, s: &mut usize) -> std::io:
     Ok(())
 }
 
-pub trait SerializationScheme: Sized+Default {
-    fn process<TSerializationReflector: SerializationReflector>(
+fn reflect_vec_size<R: SerializationReflector, T: Default+Clone>(r: &mut R, v: &mut Vec<T>) -> std::io::Result<()> {
+    let mut size = v.len();
+    reflect_size(r, &mut size)?;
+    if v.len() != size {
+        v.resize(size, Default::default());
+    }
+    Ok(())
+}
+
+pub trait Reflectable: Sized+Default {
+    fn reflect<TSerializationReflector: SerializationReflector>(
         &mut self,
         reflector: &mut TSerializationReflector
     ) -> std::io::Result<()>;
@@ -179,40 +175,40 @@ fn serialize_to_stream_be<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
-    where T: SerializationScheme, TStream: Write
+    where T: Reflectable, TStream: Write
 {
     let mut serializer = BinaryWriterBigEndian { stream };
-    data.process(&mut serializer)
+    data.reflect(&mut serializer)
 }
 
 fn serialize_to_stream_le<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
-    where T: SerializationScheme, TStream: Write
+    where T: Reflectable, TStream: Write
 {
     let mut serializer = BinaryWriterLittleEndian { stream };
-    data.process(&mut serializer)
+    data.reflect(&mut serializer)
 }
 
 fn deserialize_from_stream_be<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
-    where T: SerializationScheme, TStream: Read
+    where T: Reflectable, TStream: Read
 {
     let mut serializer = BinaryReaderBigEndian { stream };
-    data.process(&mut serializer)
+    data.reflect(&mut serializer)
 }
 
 fn deserialize_from_stream_le<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
-    where T: SerializationScheme, TStream: Read
+    where T: Reflectable, TStream: Read
 {
     let mut serializer = BinaryReaderLittleEndian { stream };
-    data.process(&mut serializer)
+    data.reflect(&mut serializer)
 }
 
 struct BinaryWriterBigEndian<'a, TStream: Write> {
@@ -748,7 +744,7 @@ impl<'a, TStream: Read> SerializationReflector for BinaryReaderLittleEndian<'a, 
 #[cfg(test)]
 mod tests {
     use std::io::{Cursor, Seek, SeekFrom};
-    use crate::{SerializationScheme, SerializationReflector, Endianness, BinaryReaderLittleEndian, BinaryReaderBigEndian};
+    use crate::{Reflectable, SerializationReflector, Endianness, BinaryReaderLittleEndian, BinaryReaderBigEndian, BinaryWriterLittleEndian};
 
     #[derive(Default, Debug, Copy, Clone)]
     struct TestStruct {
@@ -760,8 +756,8 @@ mod tests {
         f: u8
     }
 
-    impl SerializationScheme for TestStruct {
-        fn process<TSerializationReflector: SerializationReflector>(
+    impl Reflectable for TestStruct {
+        fn reflect<TSerializationReflector: SerializationReflector>(
             &mut self, reflector:
             &mut TSerializationReflector
         ) -> std::io::Result<()> {
@@ -860,5 +856,17 @@ mod tests {
             Endianness::LittleEndian
         );
         assert!(deserialize_trial.is_ok());
+    }
+
+    #[test]
+    fn test_string_serialization() {
+        let mut s = "Hey dude".to_string();
+        let mut s2 = "Yo dude".to_string();
+        let mut stream_vec = Vec::new();
+        let mut serializer = BinaryWriterLittleEndian{ stream: &mut stream_vec };
+        serializer.reflect_string(&mut s).unwrap();
+        let mut deserializer = BinaryReaderLittleEndian{ stream: &mut &stream_vec[..] };
+        deserializer.reflect_string(&mut s2).unwrap();
+        assert_eq!(s, s2);
     }
 }
