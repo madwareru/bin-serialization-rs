@@ -93,9 +93,6 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
-    fn reflect_composite<R: Reflectable>(&mut self, composite: &mut R) -> std::io::Result<()> {
-        composite.reflect(self)
-    }
     fn reflect_bool(&mut self, data: &mut bool) -> std::io::Result<()> {
         let mut casted = if *data { 1 } else { 0 };
         self.reflect_u8(&mut casted)?;
@@ -109,10 +106,29 @@ pub trait SerializationReflector: Sized {
         }
         Ok(())
     }
+    fn reflect_composite<R: Reflectable>(&mut self, composite: &mut R) -> std::io::Result<()> {
+        composite.reflect(self)
+    }
     fn reflect_array_of_composites<R: Reflectable>(&mut self, data: &mut Vec<R>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
             self.reflect_composite(&mut data[i])?;
+        }
+        Ok(())
+    }
+    fn reflect_tagged_composite<R: TaggedReflectable>(
+        &mut self,
+        composite: &mut R
+    ) -> std::io::Result<()> {
+        composite.reflect(self)
+    }
+    fn reflect_array_of_tagged_composites<R: TaggedReflectable>(
+        &mut self,
+        data: &mut Vec<R>
+    ) -> std::io::Result<()> {
+        reflect_vec_size(self, data)?;
+        for i in 0..data.len(){
+            self.reflect_tagged_composite(&mut data[i])?;
         }
         Ok(())
     }
@@ -166,6 +182,44 @@ fn reflect_vec_size<R: SerializationReflector, T: Default+Clone>(r: &mut R, v: &
     Ok(())
 }
 
+pub trait TaggedReflectable: Default+Clone {
+    fn get_tag(&self) -> u16;
+    fn reflect_tagged<TSerializationReflector: SerializationReflector>(
+        &mut self,
+        tag: u16,
+        reflector: &mut TSerializationReflector
+    ) -> std::io::Result<()>;
+    fn reflect<TSerializationReflector: SerializationReflector>(
+        &mut self,
+        reflector: &mut TSerializationReflector
+    ) -> std::io::Result<()> {
+        let mut tag = self.get_tag();
+        reflector.reflect_u16(&mut tag)?;
+        self.reflect_tagged(tag, reflector)
+    }
+    fn serialize<TStream: Write>(
+        &mut self,
+        stream: &mut TStream,
+        endianness: Endianness
+    ) -> std::io::Result<()> {
+        match endianness {
+            Endianness::BigEndian => serialize_tagged_to_stream_be(self, stream),
+            Endianness::LittleEndian => serialize_tagged_to_stream_le(self, stream)
+        }
+    }
+    fn deserialize<TStream: Read>(
+        stream: &mut TStream,
+        endianness: Endianness
+    ) -> std::io::Result<Self> {
+        let mut data = Default::default();
+        match endianness {
+            Endianness::BigEndian => deserialize_tagged_from_stream_be(&mut data, stream),
+            Endianness::LittleEndian => deserialize_tagged_from_stream_le(&mut data, stream)
+        }?;
+        Ok(data)
+    }
+}
+
 pub trait Reflectable: Default+Clone {
     fn reflect<TSerializationReflector: SerializationReflector>(
         &mut self,
@@ -203,12 +257,30 @@ fn serialize_to_stream_be<'a, T, TStream>(
     let mut serializer = BinaryWriterBigEndian { stream };
     data.reflect(&mut serializer)
 }
+fn serialize_tagged_to_stream_be<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: TaggedReflectable, TStream: Write
+{
+    let mut serializer = BinaryWriterBigEndian { stream };
+    data.reflect(&mut serializer)
+}
 
 fn serialize_to_stream_le<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
     where T: Reflectable, TStream: Write
+{
+    let mut serializer = BinaryWriterLittleEndian { stream };
+    data.reflect(&mut serializer)
+}
+fn serialize_tagged_to_stream_le<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: TaggedReflectable, TStream: Write
 {
     let mut serializer = BinaryWriterLittleEndian { stream };
     data.reflect(&mut serializer)
@@ -223,12 +295,30 @@ fn deserialize_from_stream_be<'a, T, TStream>(
     let mut serializer = BinaryReaderBigEndian { stream };
     data.reflect(&mut serializer)
 }
+fn deserialize_tagged_from_stream_be<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: TaggedReflectable, TStream: Read
+{
+    let mut serializer = BinaryReaderBigEndian { stream };
+    data.reflect(&mut serializer)
+}
 
 fn deserialize_from_stream_le<'a, T, TStream>(
     data: &'a mut T,
     stream: &'a mut TStream
 ) -> std::io::Result<()>
     where T: Reflectable, TStream: Read
+{
+    let mut serializer = BinaryReaderLittleEndian { stream };
+    data.reflect(&mut serializer)
+}
+fn deserialize_tagged_from_stream_le<'a, T, TStream>(
+    data: &'a mut T,
+    stream: &'a mut TStream
+) -> std::io::Result<()>
+    where T: TaggedReflectable, TStream: Read
 {
     let mut serializer = BinaryReaderLittleEndian { stream };
     data.reflect(&mut serializer)
