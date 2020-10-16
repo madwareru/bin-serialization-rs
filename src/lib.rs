@@ -26,6 +26,7 @@ pub trait SerializationReflector: Sized {
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()>;
     fn reflect_cp866_string(&mut self, string: &mut String) -> std::io::Result<()>;
     fn reflect_cp866_zstring(&mut self, string: &mut String) -> std::io::Result<()>;
+    fn reflect_cp866_zstring_ext(&mut self, length: usize, string: &mut String) -> std::io::Result<()>;
     fn reflect_u8_array(&mut self, data: &mut Vec<u8>) -> std::io::Result<()> {
         reflect_vec_size(self, data)?;
         for i in 0..data.len(){
@@ -668,6 +669,19 @@ impl<'a, TStream: Write> SerializationReflector for BinaryWriterBigEndian<'a, TS
         let mut zero = 0;
         self.reflect_u8(&mut zero)
     }
+
+    fn reflect_cp866_zstring_ext(&mut self, length: usize, string: &mut String) -> std::io::Result<()> {
+        for ch in string.chars() {
+            let mut chr_id= if ch.is_ascii() {
+                ch as u8
+            } else {
+                b' '
+            };
+            self.reflect_u8(&mut chr_id)?;
+        };
+        let mut zero = 0;
+        self.reflect_u8(&mut zero)
+    }
 }
 
 impl<'a, TStream: Write> SerializationReflector for BinaryWriterLittleEndian<'a, TStream> {
@@ -805,6 +819,19 @@ impl<'a, TStream: Write> SerializationReflector for BinaryWriterLittleEndian<'a,
     }
 
     fn reflect_cp866_zstring(&mut self, string: &mut String) -> std::io::Result<()> {
+        for ch in string.chars() {
+            let mut chr_id= if ch.is_ascii() {
+                ch as u8
+            } else {
+                b' '
+            };
+            self.reflect_u8(&mut chr_id)?;
+        };
+        let mut zero = 0;
+        self.reflect_u8(&mut zero)
+    }
+
+    fn reflect_cp866_zstring_ext(&mut self, length: usize, string: &mut String) -> std::io::Result<()> {
         for ch in string.chars() {
             let mut chr_id= if ch.is_ascii() {
                 ch as u8
@@ -982,6 +1009,21 @@ impl<'a, TStream: Read> SerializationReflector for BinaryReaderBigEndian<'a, TSt
         }
         Ok(())
     }
+
+    fn reflect_cp866_zstring_ext(&mut self, length: usize, string: &mut String) -> std::io::Result<()> {
+        let mut chr_id = 255;
+        string.clear();
+        let mut offset = 0;
+        let mut terminator_found = false;
+        for _ in 0..offset {
+            self.reflect_u8(&mut chr_id)?;
+            if chr_id == 0 { terminator_found = true; }
+            if !terminator_found {
+                string.push(cp866_rs::decode_byte(chr_id));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<'a, TStream: Read> SerializationReflector for BinaryReaderLittleEndian<'a, TStream> {
@@ -1137,6 +1179,21 @@ impl<'a, TStream: Read> SerializationReflector for BinaryReaderLittleEndian<'a, 
         while chr_id != 0 {
             self.reflect_u8(&mut chr_id)?;
             string.push(cp866_rs::decode_byte(chr_id));
+        }
+        Ok(())
+    }
+
+    fn reflect_cp866_zstring_ext(&mut self, length: usize, string: &mut String) -> std::io::Result<()> {
+        let mut chr_id = 255;
+        string.clear();
+        let mut offset = 0;
+        let mut terminator_found = false;
+        for _ in 0..offset {
+            self.reflect_u8(&mut chr_id)?;
+            if chr_id == 0 { terminator_found = true; }
+            if !terminator_found {
+                string.push(cp866_rs::decode_byte(chr_id));
+            }
         }
         Ok(())
     }
