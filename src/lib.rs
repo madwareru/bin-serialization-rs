@@ -1,5 +1,6 @@
 use std::io::{Write, Read};
 
+#[derive(Copy, Clone, PartialEq)]
 pub enum Endianness {
     BigEndian,
     LittleEndian
