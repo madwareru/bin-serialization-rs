@@ -14,6 +14,14 @@ pub enum SizePolicy {
     U64
 }
 
+fn check(cond: bool, errText: &str) -> std::io::Result<()> {
+    if cond {
+        Some(())
+    } else {
+        None
+    }.ok_or(std::io::Error::new(std::io::ErrorKind::Other, errText))
+}
+
 pub trait SerializationReflector: Sized {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()>;
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()>;
@@ -526,122 +534,53 @@ struct BinaryWriterLittleEndian<'a, TStream: Write> {
 
 impl<'a, TStream: Write> SerializationReflector for BinaryWriterBigEndian<'a, TStream> {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        let bytes_written = self.stream.write(&[*data])?;
-        if bytes_written == 1 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write one byte"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 1, "failed to write one byte")
     }
 
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
-        let mut d = data.to_be();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1])?;
-        if bytes_written == 2 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write two bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 2, "failed to write two bytes")
     }
 
     fn reflect_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
-        let mut d = data.to_be();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8; d /= 0x100;
-        let b2 = (d & 0xFF) as u8; d /= 0x100;
-        let b3 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1, b2, b3])?;
-        if bytes_written == 4 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write four bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
-        let mut d = data.to_be();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8; d /= 0x100;
-        let b2 = (d & 0xFF) as u8; d /= 0x100;
-        let b3 = (d & 0xFF) as u8; d /= 0x100;
-        let b4 = (d & 0xFF) as u8; d /= 0x100;
-        let b5 = (d & 0xFF) as u8; d /= 0x100;
-        let b6 = (d & 0xFF) as u8; d /= 0x100;
-        let b7 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
-        if bytes_written == 8 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write eight bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i8;
-            let x = x as *const u8;
-            *x
-        };
-        self.reflect_u8(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 1, "failed to write one byte")
     }
 
     fn reflect_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i16;
-            let x = x as *const u16;
-            *x
-        };
-        self.reflect_u16(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 2, "failed to write two bytes")
     }
 
     fn reflect_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i32;
-            let x = x as *const u32;
-            *x
-        };
-        self.reflect_u32(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_i64(&mut self, data: &mut i64) -> std::io::Result<()>{
-        let mut data = unsafe {
-            let x  = &[*data] as *const i64;
-            let x = x as *const u64;
-            *x
-        };
-        self.reflect_u64(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const f32;
-            let x = x as *const u32;
-            *x
-        };
-        self.reflect_u32(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const f64;
-            let x = x as *const u64;
-            *x
-        };
-        self.reflect_u64(&mut data)
+        let bytes_written = self.stream.write(&data.to_be_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_cp866_string(&mut self, string: &mut String) -> std::io::Result<()> {
@@ -687,122 +626,53 @@ impl<'a, TStream: Write> SerializationReflector for BinaryWriterBigEndian<'a, TS
 
 impl<'a, TStream: Write> SerializationReflector for BinaryWriterLittleEndian<'a, TStream> {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        let bytes_written = self.stream.write(&[*data])?;
-        if bytes_written == 1 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write two bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 1, "failed to write one byte")
     }
 
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
-        let mut d = data.to_le();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1])?;
-        if bytes_written == 2 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write two bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 2, "failed to write two bytes")
     }
 
     fn reflect_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
-        let mut d = data.to_le();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8; d /= 0x100;
-        let b2 = (d & 0xFF) as u8; d /= 0x100;
-        let b3 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1, b2, b3])?;
-        if bytes_written == 4 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write four bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
-        let mut d = data.to_le();
-        let b0 = (d & 0xFF) as u8; d /= 0x100;
-        let b1 = (d & 0xFF) as u8; d /= 0x100;
-        let b2 = (d & 0xFF) as u8; d /= 0x100;
-        let b3 = (d & 0xFF) as u8; d /= 0x100;
-        let b4 = (d & 0xFF) as u8; d /= 0x100;
-        let b5 = (d & 0xFF) as u8; d /= 0x100;
-        let b6 = (d & 0xFF) as u8; d /= 0x100;
-        let b7 = (d & 0xFF) as u8;
-        let bytes_written = self.stream.write(&[b0, b1, b2, b3, b4, b5, b6, b7])?;
-        if bytes_written == 8 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to write eight bytes"
-            ))
-        }
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i8;
-            let x = x as *const u8;
-            *x
-        };
-        self.reflect_u8(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 1, "failed to write one byte")
     }
 
     fn reflect_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i16;
-            let x = x as *const u16;
-            *x
-        };
-        self.reflect_u16(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 2, "failed to write two bytes")
     }
 
     fn reflect_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const i32;
-            let x = x as *const u32;
-            *x
-        };
-        self.reflect_u32(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_i64(&mut self, data: &mut i64) -> std::io::Result<()>{
-        let mut data = unsafe {
-            let x  = &[*data] as *const i64;
-            let x = x as *const u64;
-            *x
-        };
-        self.reflect_u64(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const f32;
-            let x = x as *const u32;
-            *x
-        };
-        self.reflect_u32(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 4, "failed to write four bytes")
     }
 
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
-        let mut data = unsafe {
-            let x  = &[*data] as *const f64;
-            let x = x as *const u64;
-            *x
-        };
-        self.reflect_u64(&mut data)
+        let bytes_written = self.stream.write(&data.to_le_bytes())?;
+        check(bytes_written == 8, "failed to write eight bytes")
     }
 
     fn reflect_cp866_string(&mut self, string: &mut String) -> std::io::Result<()> {
@@ -856,137 +726,73 @@ struct BinaryReaderLittleEndian<'a, TStream: Read> {
 
 impl<'a, TStream: Read> SerializationReflector for BinaryReaderBigEndian<'a, TStream> {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        let d = &mut [0];
+        let d = &mut [0; 1];
         let size_read = self.stream.read(d)?;
-        *data = d[0];
-        if size_read == 1 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read one byte"
-            ))
-        }
+        *data = u8::from_be_bytes(*d);
+        check(size_read == 1, "failed to read one byte")
     }
 
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
         let d = &mut [0; 2];
         let size_read = self.stream.read(d)?;
-        *data = u16::from_be(d[0] as u16 + d[1] as u16 * 0x100);
-        if size_read == 2 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read two bytes"
-            ))
-        }
+        *data = u16::from_be_bytes(*d);
+        check(size_read == 2, "failed to read two bytes")
     }
 
     fn reflect_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
         let d = &mut [0; 4];
         let size_read = self.stream.read(d)?;
-        *data = u32::from_be(d[0] as u32 +
-            d[1] as u32 * 0x100 +
-            d[2] as u32 * 0x10000 +
-            d[3] as u32 * 0x1000000
-        );
-        if size_read == 4 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read four bytes"
-            ))
-        }
+        *data = u32::from_be_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
         let d = &mut [0; 8];
         let size_read = self.stream.read(d)?;
-        *data = u64::from_be(d[0] as u64 +
-            d[1] as u64 * 0x100 +
-            d[2] as u64 * 0x10000 +
-            d[3] as u64 * 0x1000000 +
-            d[4] as u64 * 0x100000000 +
-            d[5] as u64 * 0x10000000000 +
-            d[6] as u64 * 0x1000000000000 +
-            d[7] as u64 * 0x100000000000000
-        );
-        if size_read == 8 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read eight bytes"
-            ))
-        }
+        *data = u64::from_be_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
-        let mut d = 0u8;
-        self.reflect_u8(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u8;
-            let x = x as *const i8;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 1];
+        let size_read = self.stream.read(d)?;
+        *data = i8::from_be_bytes(*d);
+        check(size_read == 1, "failed to read one byte")
     }
 
     fn reflect_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
-        let mut d = 0u16;
-        self.reflect_u16(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u16;
-            let x = x as *const i16;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 2];
+        let size_read = self.stream.read(d)?;
+        *data = i16::from_be_bytes(*d);
+        check(size_read == 2, "failed to read two bytes")
     }
 
     fn reflect_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
-        let mut d = 0u32;
-        self.reflect_u32(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u32;
-            let x = x as *const i32;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = i32::from_be_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_i64(&mut self, data: &mut i64) -> std::io::Result<()> {
-        let mut d = 0u64;
-        self.reflect_u64(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u64;
-            let x = x as *const i64;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = i64::from_be_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
-        let mut d = 0u32;
-        self.reflect_u32(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u32;
-            let x = x as *const f32;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = f32::from_be_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
-        let mut d = 0u64;
-        self.reflect_u64(&mut d)?;
-        *data = unsafe {
-            let x  = &[d] as *const u64;
-            let x = x as *const f64;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = f64::from_be_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_cp866_string(&mut self, string: &mut String) -> std::io::Result<()> {
@@ -1029,137 +835,73 @@ impl<'a, TStream: Read> SerializationReflector for BinaryReaderBigEndian<'a, TSt
 
 impl<'a, TStream: Read> SerializationReflector for BinaryReaderLittleEndian<'a, TStream> {
     fn reflect_u8(&mut self, data: &mut u8) -> std::io::Result<()> {
-        let d = &mut [0];
+        let d = &mut [0; 1];
         let size_read = self.stream.read(d)?;
-        *data = d[0];
-        if size_read == 1 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read one byte"
-            ))
-        }
+        *data = u8::from_le_bytes(*d);
+        check(size_read == 1, "failed to read one byte")
     }
 
     fn reflect_u16(&mut self, data: &mut u16) -> std::io::Result<()> {
         let d = &mut [0; 2];
         let size_read = self.stream.read(d)?;
-        *data = u16::from_le(d[0] as u16 + d[1] as u16 * 0x100);
-        if size_read == 2 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read two bytes"
-            ))
-        }
+        *data = u16::from_le_bytes(*d);
+        check(size_read == 2, "failed to read two bytes")
     }
 
     fn reflect_u32(&mut self, data: &mut u32) -> std::io::Result<()> {
         let d = &mut [0; 4];
         let size_read = self.stream.read(d)?;
-        *data = u32::from_le(d[0] as u32 +
-            d[1] as u32 * 0x100 +
-            d[2] as u32 * 0x10000 +
-            d[3] as u32 * 0x1000000
-        );
-        if size_read == 4 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read four bytes"
-            ))
-        }
+        *data = u32::from_le_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_u64(&mut self, data: &mut u64) -> std::io::Result<()> {
         let d = &mut [0; 8];
         let size_read = self.stream.read(d)?;
-        *data = u64::from_le(d[0] as u64 +
-            d[1] as u64 * 0x100 +
-            d[2] as u64 * 0x10000 +
-            d[3] as u64 * 0x1000000 +
-            d[4] as u64 * 0x100000000 +
-            d[5] as u64 * 0x10000000000 +
-            d[6] as u64 * 0x1000000000000 +
-            d[7] as u64 * 0x100000000000000
-        );
-        if size_read == 8 {
-            Ok(())
-        } else {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to read eight bytes"
-            ))
-        }
+        *data = u64::from_le_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_i8(&mut self, data: &mut i8) -> std::io::Result<()> {
-        let mut d = 0u8;
-        self.reflect_u8(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u8;
-            let x = x as *const i8;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 1];
+        let size_read = self.stream.read(d)?;
+        *data = i8::from_le_bytes(*d);
+        check(size_read == 1, "failed to read one byte")
     }
 
     fn reflect_i16(&mut self, data: &mut i16) -> std::io::Result<()> {
-        let mut d = 0u16;
-        self.reflect_u16(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u16;
-            let x = x as *const i16;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 2];
+        let size_read = self.stream.read(d)?;
+        *data = i16::from_le_bytes(*d);
+        check(size_read == 2, "failed to read two bytes")
     }
 
     fn reflect_i32(&mut self, data: &mut i32) -> std::io::Result<()> {
-        let mut d = 0u32;
-        self.reflect_u32(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u32;
-            let x = x as *const i32;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = i32::from_le_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_i64(&mut self, data: &mut i64) -> std::io::Result<()> {
-        let mut d = 0u64;
-        self.reflect_u64(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u64;
-            let x = x as *const i64;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = i64::from_le_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_f32(&mut self, data: &mut f32) -> std::io::Result<()> {
-        let mut d = 0u32;
-        self.reflect_u32(&mut d)?;
-        *data = unsafe {
-            let x = &[d] as *const u32;
-            let x = x as *const f32;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 4];
+        let size_read = self.stream.read(d)?;
+        *data = f32::from_le_bytes(*d);
+        check(size_read == 4, "failed to read four bytes")
     }
 
     fn reflect_f64(&mut self, data: &mut f64) -> std::io::Result<()> {
-        let mut d = 0u64;
-        self.reflect_u64(&mut d)?;
-        *data = unsafe {
-            let x  = &[d] as *const u64;
-            let x = x as *const f64;
-            *x
-        };
-        Ok(())
+        let d = &mut [0; 8];
+        let size_read = self.stream.read(d)?;
+        *data = f64::from_le_bytes(*d);
+        check(size_read == 8, "failed to read eight bytes")
     }
 
     fn reflect_cp866_string(&mut self, string: &mut String) -> std::io::Result<()> {

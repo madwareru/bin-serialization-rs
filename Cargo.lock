@@ -2,7 +2,7 @@
 # It is not intended for manual editing.
 [[package]]
 name = "bin-serialization-rs"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "cp866-rs",
 ]
